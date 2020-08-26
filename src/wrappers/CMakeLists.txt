@@ -40,3 +40,6 @@ add_library(wrappers
   ti_c6x_wrapper.hpp
   )
 target_link_libraries(wrappers base config sys cache lua)
+if(MINGW)
+  target_link_libraries(wrappers)
+endif()

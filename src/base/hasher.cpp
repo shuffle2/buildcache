@@ -17,14 +17,13 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
+#include <base/file_utils.hpp>
 #include <base/hasher.hpp>
 
-#include <base/file_utils.hpp>
+#include <cstring>
 
 #include <algorithm>
 #include <stdexcept>
-
-#include <cstring>
 
 #define XXH_INLINE_ALL
 #include <xxHash/xxhash.h>
@@ -57,9 +56,18 @@ hasher_t::hash_t hasher_t::final() {
 
 hasher_t::hasher_t() {
   m_state = XXH3_createState();
-  if (XXH3_128bits_reset(reinterpret_cast<XXH3_state_t*>(m_state)) == XXH_ERROR) {
+  if (!m_state || XXH3_128bits_reset(reinterpret_cast<XXH3_state_t*>(m_state)) == XXH_ERROR) {
     throw std::runtime_error("Hash init failure.");
   }
+}
+
+hasher_t::hasher_t(const hasher_t& other) {
+  m_state = XXH3_createState();
+  if (!m_state) {
+    throw std::runtime_error("Hash init failure.");
+  }
+  XXH3_copyState(reinterpret_cast<XXH3_state_t*>(m_state),
+                 reinterpret_cast<XXH3_state_t*>(other.m_state));
 }
 
 hasher_t::~hasher_t() {

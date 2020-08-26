@@ -22,6 +22,7 @@
 #include <base/unicode_utils.hpp>
 #include <cache/local_cache.hpp>
 #include <config/configuration.hpp>
+#include <sys/filetracker.hpp>
 #include <sys/perf_utils.hpp>
 #include <sys/sys_utils.hpp>
 #include <wrappers/ccc_analyzer_wrapper.hpp>
@@ -301,6 +302,7 @@ std::unique_ptr<bcache::program_wrapper_t> find_suitable_wrapper(
 
     // Is the caching mechanism disabled?
     if (bcache::config::disable()) {
+      bcache::filetracker::release_suppression();
       // Bypass all the cache logic and call the intended command directly.
       auto result = bcache::sys::run(args, false);
       return_code = result.return_code;
@@ -346,6 +348,7 @@ std::unique_ptr<bcache::program_wrapper_t> find_suitable_wrapper(
 
       // Fall back to running the command as is.
       if (!was_wrapped) {
+        bcache::filetracker::release_suppression();
         PERF_START(RUN_FOR_FALLBACK);
         auto result = bcache::sys::run_with_prefix(args, false);
         PERF_STOP(RUN_FOR_FALLBACK);

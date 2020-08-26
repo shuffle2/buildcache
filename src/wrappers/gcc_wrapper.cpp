@@ -17,12 +17,11 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#include <wrappers/gcc_wrapper.hpp>
-
 #include <base/debug_utils.hpp>
 #include <base/unicode_utils.hpp>
 #include <config/configuration.hpp>
 #include <sys/sys_utils.hpp>
+#include <wrappers/gcc_wrapper.hpp>
 
 #include <fstream>
 #include <regex>
@@ -183,7 +182,7 @@ string_list_t gcc_wrapper_t::get_capabilities() {
   return string_list_t{"hard_links"};
 }
 
-std::string gcc_wrapper_t::preprocess_source() {
+pp_sources_t gcc_wrapper_t::preprocess_source() {
   // Check if this is a compilation command that we support.
   auto is_object_compilation = false;
   auto has_object_output = false;
@@ -208,7 +207,7 @@ std::string gcc_wrapper_t::preprocess_source() {
 
   // Read and return the preprocessed file.
   const auto preprocessed_source = file::read(preprocessed_file.path());
-  return preprocessed_source;
+  return {{{}, preprocessed_source}};
 }
 
 string_list_t gcc_wrapper_t::get_relevant_arguments() {
@@ -271,8 +270,8 @@ std::string gcc_wrapper_t::get_program_id() {
   return id;
 }
 
-std::map<std::string, expected_file_t> gcc_wrapper_t::get_build_files() {
-  std::map<std::string, expected_file_t> files;
+build_files_t gcc_wrapper_t::get_build_files(const pp_key_t& key) {
+  build_files_t files;
   auto found_object_file = false;
   for (size_t i = 0u; i < m_resolved_args.size(); ++i) {
     const auto next_idx = i + 1u;

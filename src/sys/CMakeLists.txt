@@ -18,6 +18,8 @@
 #---------------------------------------------------------------------------------------------------
 
 set(SYS_SRCS
+  filetracker.hpp
+  filetracker.cpp
   perf_utils.cpp
   perf_utils.hpp
   sys_utils.cpp

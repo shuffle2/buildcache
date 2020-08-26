@@ -17,33 +17,41 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#ifndef BUILDCACHE_GCC_WRAPPER_HPP_
-#define BUILDCACHE_GCC_WRAPPER_HPP_
+#ifndef BUILDCACHE_FILETRACKER_HPP_
+#define BUILDCACHE_FILETRACKER_HPP_
 
+#include <base/string_list.hpp>
 #include <wrappers/program_wrapper.hpp>
 
 namespace bcache {
-/// @brief A program wrapper for GCC and GCC-like C/C++ compilers.
-class gcc_wrapper_t : public program_wrapper_t {
+namespace filetracker {
+/// @brief Re-enable FileTracker monitoring. Should be used before performing a fallback action
+/// which may produce outputs that the build system needs to be aware of.
+void release_suppression();
+
+class tracking_log_t {
 public:
-  gcc_wrapper_t(const string_list_t& args);
-
-  bool can_handle_command() override;
-
-protected:
-  string_list_t get_capabilities() override;
-  pp_sources_t preprocess_source() override;
-  string_list_t get_relevant_arguments() override;
-  std::map<std::string, std::string> get_relevant_env_vars() override;
-  std::string get_program_id() override;
-  build_files_t get_build_files(const pp_key_t& key) override;
-
-  string_list_t m_resolved_args;
+  tracking_log_t();
+  bool enabled() const {
+    return m_enabled;
+  };
+  build_files_t get_build_files(const std::string& filename) const;
+  void add_source(const std::string& path);
+  void finalize_sources();
+  void write_logs(const std::string& source,
+                  const build_files_t& build_files,
+                  const string_list_t& dependencies) const;
 
 private:
-  void resolve_args() override;
-  string_list_t parse_args(const string_list_t& args);
-  string_list_t parse_response_file(const std::string& filename);
+  std::string fullpath(const std::string& path) const;
+
+  bool m_enabled;
+  std::string m_intermediate_dir;
+  std::string m_toolchain;
+  string_list_t m_sources;
+  std::string m_root;
 };
+}  // namespace filetracker
 }  // namespace bcache
-#endif  // BUILDCACHE_GCC_WRAPPER_HPP_
+
+#endif  // BUILDCACHE_FILETRACKER_HPP_

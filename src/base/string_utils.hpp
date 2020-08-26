@@ -17,33 +17,26 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#ifndef BUILDCACHE_GCC_WRAPPER_HPP_
-#define BUILDCACHE_GCC_WRAPPER_HPP_
+#ifndef BUILDCACHE_STRING_UTILS_HPP_
+#define BUILDCACHE_STRING_UTILS_HPP_
 
-#include <wrappers/program_wrapper.hpp>
+#include <string>
+#include <vector>
 
 namespace bcache {
-/// @brief A program wrapper for GCC and GCC-like C/C++ compilers.
-class gcc_wrapper_t : public program_wrapper_t {
-public:
-  gcc_wrapper_t(const string_list_t& args);
+inline bool starts_with(const std::string& str, const std::string& sub_str) {
+  return str.substr(0, sub_str.size()) == sub_str;
+}
 
-  bool can_handle_command() override;
-
-protected:
-  string_list_t get_capabilities() override;
-  pp_sources_t preprocess_source() override;
-  string_list_t get_relevant_arguments() override;
-  std::map<std::string, std::string> get_relevant_env_vars() override;
-  std::string get_program_id() override;
-  build_files_t get_build_files(const pp_key_t& key) override;
-
-  string_list_t m_resolved_args;
-
-private:
-  void resolve_args() override;
-  string_list_t parse_args(const string_list_t& args);
-  string_list_t parse_response_file(const std::string& filename);
-};
+inline std::vector<std::string> split(const std::string& str, char delimiter) {
+  std::vector<std::string> result;
+  for (std::string::size_type pos = 0, next = 0; next != std::string::npos;
+       pos = next + sizeof(delimiter)) {
+    next = str.find_first_of(delimiter, pos);
+    result.emplace_back(str.substr(pos, next - pos));
+  }
+  return result;
+}
 }  // namespace bcache
-#endif  // BUILDCACHE_GCC_WRAPPER_HPP_
+
+#endif  // BUILDCACHE_STRING_UTILS_HPP_

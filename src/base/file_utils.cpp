@@ -772,7 +772,7 @@ file_info_t get_file_info(const std::string& path) {
   }
 #endif
 
-  throw std::runtime_error("Unable to get file information.");
+  throw std::runtime_error("Unable to get file information for " + path);
 }
 
 std::string human_readable_size(const int64_t byte_size) {

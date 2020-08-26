@@ -30,10 +30,10 @@ public:
 
 protected:
   void resolve_args() override;
-  std::string preprocess_source() override;
+  pp_sources_t preprocess_source() override;
   string_list_t get_relevant_arguments() override;
   std::string get_program_id() override;
-  std::map<std::string, expected_file_t> get_build_files() override;
+  build_files_t get_build_files(const pp_key_t& key) override;
 
   string_list_t m_resolved_args;
 

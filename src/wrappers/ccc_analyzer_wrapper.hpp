@@ -34,8 +34,8 @@ public:
 
 private:
   std::map<std::string, std::string> get_relevant_env_vars() override;
-  std::map<std::string, expected_file_t> get_build_files() override;
-  sys::run_result_t run_for_miss() override;
+  build_files_t get_build_files(const pp_key_t& key) override;
+  sys::run_result_t run_for_miss(miss_infos_t& miss_infos) override;
 
   static const int MAX_NUM_REPORTS = 10;
   std::string m_report_paths[MAX_NUM_REPORTS];

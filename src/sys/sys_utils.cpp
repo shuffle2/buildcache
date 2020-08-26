@@ -17,16 +17,16 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#include <sys/sys_utils.hpp>
-
 #include <base/debug_utils.hpp>
 #include <base/env_utils.hpp>
 #include <base/file_utils.hpp>
 #include <base/unicode_utils.hpp>
 #include <config/configuration.hpp>
+#include <sys/sys_utils.hpp>
 
 #include <cstdio>
 #include <cstdlib>
+
 #include <iostream>
 #include <stdexcept>
 #include <vector>
@@ -41,6 +41,7 @@
 #include <windows.h>
 #include <shellapi.h>
 #include <shlobj.h>
+
 #include <thread>
 #undef ERROR
 #undef log
@@ -49,6 +50,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
 #include <thread>
 #endif
 
@@ -103,17 +105,13 @@ bool print_raw(const char* str, const DWORD len, HANDLE handle) {
 
 // Helper function for reading data from a child process pipe.
 #if defined(_WIN32)
-bool read_from_pipe(HANDLE pipe_handle,
-                    std::string& data,
-                    const bool quiet,
-                    HANDLE& out_stream) {
+bool read_from_pipe(HANDLE pipe_handle, std::string& data, const bool quiet, HANDLE& out_stream) {
   std::vector<char> buf(4096);
   auto success = true;
   auto has_more_data = true;
   while (has_more_data && success) {
     DWORD bytes_read = 0;
-    if (!ReadFile(
-            pipe_handle, buf.data(), static_cast<DWORD>(buf.size()), &bytes_read, nullptr)) {
+    if (!ReadFile(pipe_handle, buf.data(), static_cast<DWORD>(buf.size()), &bytes_read, nullptr)) {
       const auto err = GetLastError();
       // ERROR_BROKEN_PIPE indicates that we're done (normal exit path).
       if (err != ERROR_BROKEN_PIPE) {
@@ -169,7 +167,12 @@ run_result_t run(const string_list_t& args, const bool quiet) {
   run_result_t result;
 
   auto successfully_launched_program = false;
-  const auto cmd = args.join(" ", true);
+#if defined(_WIN32)
+  const bool escape_args = false;
+#else
+  const bool escape_args = true;
+#endif
+  const auto cmd = args.join(" ", escape_args);
   debug::log(debug::DEBUG) << "Invoking: " << cmd;
 
 #if defined(_WIN32)

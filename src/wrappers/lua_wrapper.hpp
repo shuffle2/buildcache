@@ -69,12 +69,12 @@ private:
 
   void resolve_args() override;
   string_list_t get_capabilities() override;
-  std::string preprocess_source() override;
+  pp_sources_t preprocess_source() override;
   string_list_t get_relevant_arguments() override;
   std::map<std::string, std::string> get_relevant_env_vars() override;
   std::string get_program_id() override;
-  std::map<std::string, expected_file_t> get_build_files() override;
-  sys::run_result_t run_for_miss() override;
+  build_files_t get_build_files(const pp_key_t& key) override;
+  sys::run_result_t run_for_miss(miss_infos_t& miss_infos) override;
 
   runner_t m_runner;
 };

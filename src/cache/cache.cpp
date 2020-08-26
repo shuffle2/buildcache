@@ -17,10 +17,9 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#include <cache/cache.hpp>
-
 #include <base/debug_utils.hpp>
 #include <base/file_utils.hpp>
+#include <cache/cache.hpp>
 #include <config/configuration.hpp>
 #include <sys/perf_utils.hpp>
 #include <sys/sys_utils.hpp>
@@ -50,18 +49,19 @@ int64_t get_total_entry_size(const cache_entry_t& entry,
 
 bool cache_t::lookup(const hasher_t::hash_t hash,
                      const std::map<std::string, expected_file_t>& expected_files,
+                     lookup_filter_t filter,
                      const bool allow_hard_links,
                      const bool create_target_dirs,
                      int& return_code) {
   // First try the local cache.
   if (lookup_in_local_cache(
-          hash, expected_files, allow_hard_links, create_target_dirs, return_code)) {
+          hash, expected_files, filter, allow_hard_links, create_target_dirs, return_code)) {
     return true;
   }
 
   // Then try the remote cache.
   if (lookup_in_remote_cache(
-          hash, expected_files, allow_hard_links, create_target_dirs, return_code)) {
+          hash, expected_files, filter, allow_hard_links, create_target_dirs, return_code)) {
     return true;
   }
 
@@ -91,6 +91,7 @@ void cache_t::add(const hasher_t::hash_t hash,
     if (size < max_remote_size || max_remote_size <= 0) {
       // Note: We always compress entries for the remote cache.
       const cache_entry_t remote_entry(entry.file_ids(),
+                                       entry.dependency_records(),
                                        cache_entry_t::comp_mode_t::ALL,
                                        entry.std_out(),
                                        entry.std_err(),
@@ -106,6 +107,7 @@ void cache_t::add(const hasher_t::hash_t hash,
 
 bool cache_t::lookup_in_local_cache(const hasher_t::hash_t hash,
                                     const std::map<std::string, expected_file_t>& expected_files,
+                                    lookup_filter_t filter,
                                     const bool allow_hard_links,
                                     const bool create_target_dirs,
                                     int& return_code) {
@@ -115,7 +117,7 @@ bool cache_t::lookup_in_local_cache(const hasher_t::hash_t hash,
   const auto& cached_entry = lookup_result.first;
   PERF_STOP(CACHE_LOOKUP);
 
-  if (!cached_entry) {
+  if (!cached_entry || !filter(cached_entry)) {
     return false;
   }
 
@@ -147,6 +149,7 @@ bool cache_t::lookup_in_local_cache(const hasher_t::hash_t hash,
 
 bool cache_t::lookup_in_remote_cache(const hasher_t::hash_t hash,
                                      const std::map<std::string, expected_file_t>& expected_files,
+                                     lookup_filter_t filter,
                                      const bool allow_hard_links,
                                      const bool create_target_dirs,
                                      int& return_code) {
@@ -159,7 +162,7 @@ bool cache_t::lookup_in_remote_cache(const hasher_t::hash_t hash,
   const auto cached_entry = m_remote_cache.lookup(hash);
   PERF_STOP(CACHE_LOOKUP);
 
-  if (!cached_entry) {
+  if (!cached_entry || !filter(cached_entry)) {
     m_local_cache.update_stats(hash, cache_stats_t::remote_miss());
     return false;
   }
@@ -197,6 +200,7 @@ bool cache_t::lookup_in_remote_cache(const hasher_t::hash_t hash,
       // if the configuration tells us to.
       const cache_entry_t entry(
           cached_entry.file_ids(),
+          cached_entry.dependency_records(),
           config::compress() ? cache_entry_t::comp_mode_t::ALL : cache_entry_t::comp_mode_t::NONE,
           cached_entry.std_out(),
           cached_entry.std_err(),

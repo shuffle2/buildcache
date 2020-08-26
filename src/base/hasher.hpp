@@ -21,6 +21,7 @@
 #define BUILDCACHE_HASHER_HPP_
 
 #include <cstdint>
+#include <cstring>
 
 #include <map>
 #include <string>
@@ -33,6 +34,10 @@ public:
   /// @brief A helper class for storing the data hash.
   class hash_t {
   public:
+    bool operator!=(const hash_t& other) const {
+      return memcmp(m_data, other.m_data, sizeof(m_data)) != 0;
+    }
+
     uint8_t* data() {
       return &m_data[0];
     }
@@ -53,6 +58,7 @@ public:
   };
 
   hasher_t();
+  hasher_t(const hasher_t& other);
   ~hasher_t();
 
   /// @brief Update the hash with more data.

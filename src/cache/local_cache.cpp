@@ -44,17 +44,18 @@
 //     +- ...
 //--------------------------------------------------------------------------------------------------
 
-#include <cache/local_cache.hpp>
-
 #include <base/compressor.hpp>
 #include <base/debug_utils.hpp>
 #include <base/file_utils.hpp>
 #include <base/serializer_utils.hpp>
+#include <base/string_utils.hpp>
+#include <cache/local_cache.hpp>
 #include <config/configuration.hpp>
 #include <sys/perf_utils.hpp>
 
 #include <chrono>
 #include <cstdlib>
+
 #include <algorithm>
 #include <iomanip>
 #include <iostream>
@@ -268,10 +269,13 @@ void local_cache_t::add(const hasher_t::hash_t& hash,
     for (const auto& file_id : entry.file_ids()) {
       const auto& source_path = expected_files.at(file_id).path();
       const auto target_path = file::append_path(cache_entry_path, file_id);
+      // XXX dirty hack to allow hard_links for objects while copying out the tlog files (which
+      // FileTracker overwrites).
+      const auto is_tlog = starts_with(file_id, "tlog_");
       if (entry.compression_mode() == cache_entry_t::comp_mode_t::ALL) {
         debug::log(debug::DEBUG) << "Compressing " << source_path << " => " << target_path;
         comp::compress_file(source_path, target_path);
-      } else if (allow_hard_links) {
+      } else if (allow_hard_links && !is_tlog) {
         file::link_or_copy(source_path, target_path);
       } else {
         file::copy(source_path, target_path);
@@ -360,16 +364,19 @@ void local_cache_t::get_file(const hasher_t::hash_t& hash,
                              const bool allow_hard_links) {
   const auto cache_entry_path = hash_to_cache_entry_path(hash);
   const auto source_path = file::append_path(cache_entry_path, source_id);
+  // XXX dirty hack to allow hard_links for objects while copying out the tlog files (which
+  // FileTracker overwrites).
+  const auto is_tlog = starts_with(source_id, "tlog_");
   if (is_compressed) {
     debug::log(debug::DEBUG) << "Decompressing file from cache";
     comp::decompress_file(source_path, target_path);
-  } else if (allow_hard_links) {
+  } else if (allow_hard_links && !is_tlog) {
     file::link_or_copy(source_path, target_path);
   } else {
     file::copy(source_path, target_path);
   }
 
-  // Touch retrieved file to ensure that the file timestamp is up to date, 
+  // Touch retrieved file to ensure that the file timestamp is up to date,
   // and that it is picked up by build system file trackers such as MSBuild.
   file::touch(target_path);
 }

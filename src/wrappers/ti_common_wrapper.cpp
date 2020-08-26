@@ -17,12 +17,12 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#include <wrappers/ti_common_wrapper.hpp>
-
 #include <base/debug_utils.hpp>
 #include <base/file_utils.hpp>
+#include <base/string_utils.hpp>
 #include <base/unicode_utils.hpp>
 #include <config/configuration.hpp>
+#include <wrappers/ti_common_wrapper.hpp>
 
 #include <algorithm>
 #include <regex>
@@ -39,10 +39,6 @@
 
 namespace bcache {
 namespace {
-bool starts_with(const std::string& str, const std::string& sub_str) {
-  return str.substr(0, sub_str.size()) == sub_str;
-}
-
 bool has_debug_symbols(const string_list_t& args) {
   // The default behavior is to enable debugging.
   //   C6x default (sprui04b.pdf, 3.3.6):   --symdebug:dwarf
@@ -134,7 +130,7 @@ void ti_common_wrapper_t::resolve_args() {
   }
 }
 
-std::string ti_common_wrapper_t::preprocess_source() {
+pp_sources_t ti_common_wrapper_t::preprocess_source() {
   // Check what kind of compilation command this is.
   bool is_object_compilation = false;
   bool is_link = false;
@@ -164,7 +160,7 @@ std::string ti_common_wrapper_t::preprocess_source() {
     }
 
     // Read and return the preprocessed file.
-    return file::read(preprocessed_file.path());
+    return {{{}, file::read(preprocessed_file.path())}};
   } else if (is_link && has_output_file) {
     // Hash all the input files.
     hasher_t hasher;
@@ -179,7 +175,7 @@ std::string ti_common_wrapper_t::preprocess_source() {
         }
       }
     }
-    return hasher.final().as_string();
+    return {{{}, hasher.final().as_string()}};
   }
 
   throw std::runtime_error("Unsupported complation command.");
@@ -237,8 +233,8 @@ std::string ti_common_wrapper_t::get_program_id() {
   return result.std_out;
 }
 
-std::map<std::string, expected_file_t> ti_common_wrapper_t::get_build_files() {
-  std::map<std::string, expected_file_t> files;
+build_files_t ti_common_wrapper_t::get_build_files(const pp_key_t& key) {
+  build_files_t files;
   std::string output_file;
   std::string dep_file;
   std::string map_file;

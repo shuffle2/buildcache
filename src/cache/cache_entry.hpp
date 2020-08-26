@@ -20,10 +20,14 @@
 #ifndef BUILDCACHE_CACHE_ENTRY_HPP_
 #define BUILDCACHE_CACHE_ENTRY_HPP_
 
+#include <base/hasher.hpp>
+
 #include <string>
 #include <vector>
 
 namespace bcache {
+using dependency_records_t = std::map<std::string, hasher_t::hash_t>;
+
 /// @brief Meta data for a single cache entry.
 class cache_entry_t {
 public:
@@ -43,6 +47,7 @@ public:
   /// @param std_err stderr from the program run.
   /// @param return_code Program return code (0 = success).
   cache_entry_t(const std::vector<std::string>& file_ids,
+                const dependency_records_t& dependencies,
                 const comp_mode_t compression_mode,
                 const std::string& std_out,
                 const std::string& std_err,
@@ -68,6 +73,11 @@ public:
     return m_file_ids;
   }
 
+  /// @returns Records describing files which file_ids depend on.
+  const dependency_records_t& dependency_records() const {
+    return m_dependency_records;
+  }
+
   /// @returns the compression mode.
   comp_mode_t compression_mode() const {
     return m_compression_mode;
@@ -90,6 +100,7 @@ public:
 
 private:
   std::vector<std::string> m_file_ids;
+  dependency_records_t m_dependency_records;
   comp_mode_t m_compression_mode = comp_mode_t::NONE;
   std::string m_std_out;
   std::string m_std_err;

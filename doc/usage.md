@@ -116,10 +116,6 @@ $ BUILDCACHE_REMOTE=s3://my-minio-server:9000/my-buildcache-bucket BUILDCACHE_S3
 
 ## Using with Visual Studio / MSBuild
 
-For usage with command line MSBuild or in Visual Studio, BuildCache must be configured to be compatible with MSBuild's FileTracker.
-
-* Set `BUILDCACHE_DIR` environment variable to `C:\ProgramData\buildcache`.
-  * or [one of the folders ignored by file tracking](https://github.com/microsoft/msbuild/blob/9eb5d09e6cd262375e37a15a779d56ab274167c8/src/Utilities/TrackedDependencies/FileTracker.cs#L208).
 * Create a symlink named `cl.exe` pointing to your `buildcache.exe`.
   * Alternatively, set `BUILDCACHE_IMPERSONATE` to `cl.exe`.
 

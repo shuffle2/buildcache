@@ -17,13 +17,12 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#include <wrappers/lua_wrapper.hpp>
-
 #include <base/debug_utils.hpp>
 #include <base/file_utils.hpp>
 #include <config/configuration.hpp>
 #include <sys/perf_utils.hpp>
 #include <sys/sys_utils.hpp>
+#include <wrappers/lua_wrapper.hpp>
 
 extern "C" {
 #include <lauxlib.h>
@@ -331,9 +330,8 @@ bool is_program_match(const std::string& script_str, const std::string& program_
   return match;
 }
 
-std::map<std::string, expected_file_t> to_expected_files_map(
-    const std::map<std::string, std::string>& files) {
-  std::map<std::string, expected_file_t> expected_files;
+build_files_t to_expected_files_map(const std::map<std::string, std::string>& files) {
+  build_files_t expected_files;
   for (const auto& file : files) {
     // Right now we simply assume that all files are required.
     // TODO(m): Make it possible to specify files as optional in Lua.
@@ -500,9 +498,9 @@ string_list_t lua_wrapper_t::get_capabilities() {
   }
 }
 
-std::string lua_wrapper_t::preprocess_source() {
+pp_sources_t lua_wrapper_t::preprocess_source() {
   if (m_runner.call("preprocess_source")) {
-    return pop_string(m_runner.state());
+    return {{{}, pop_string(m_runner.state())}};
   } else {
     return program_wrapper_t::preprocess_source();
   }
@@ -532,20 +530,20 @@ std::string lua_wrapper_t::get_program_id() {
   }
 }
 
-std::map<std::string, expected_file_t> lua_wrapper_t::get_build_files() {
+build_files_t lua_wrapper_t::get_build_files(const pp_key_t& key) {
   if (m_runner.call("get_build_files")) {
     const auto files_map = pop_map(m_runner.state());
     return to_expected_files_map(files_map);
   } else {
-    return program_wrapper_t::get_build_files();
+    return program_wrapper_t::get_build_files(key);
   }
 }
 
-sys::run_result_t lua_wrapper_t::run_for_miss() {
+sys::run_result_t lua_wrapper_t::run_for_miss(miss_infos_t& miss_infos) {
   if (m_runner.call("run_for_miss")) {
     return pop_run_result(m_runner.state());
   } else {
-    return program_wrapper_t::run_for_miss();
+    return program_wrapper_t::run_for_miss(miss_infos);
   }
 }
 

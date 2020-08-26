@@ -69,8 +69,8 @@ std::map<std::string, std::string> ccc_analyzer_wrapper_t::get_relevant_env_vars
   return env_vars;
 }
 
-std::map<std::string, expected_file_t> ccc_analyzer_wrapper_t::get_build_files() {
-  auto files = gcc_wrapper_t::get_build_files();
+build_files_t ccc_analyzer_wrapper_t::get_build_files(const pp_key_t& key) {
+  auto files = gcc_wrapper_t::get_build_files(key);
 
   // Get the target report path.
   env_var_t report_dir("CCC_ANALYZER_HTML");
@@ -92,7 +92,7 @@ std::map<std::string, expected_file_t> ccc_analyzer_wrapper_t::get_build_files()
   return files;
 }
 
-sys::run_result_t ccc_analyzer_wrapper_t::run_for_miss() {
+sys::run_result_t ccc_analyzer_wrapper_t::run_for_miss(miss_infos_t& miss_infos) {
   // Create the temporary report dir (it will be deleted automatically when the wrapper object goes
   // out of scope).
   file::create_dir_with_parents(m_tmp_report_dir.path());

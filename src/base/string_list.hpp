@@ -39,6 +39,11 @@ public:
   string_list_t(std::initializer_list<std::string> list) : m_args(list) {
   }
 
+  /// @brief Construct a list from an const_iterator.
+  /// @param list The range to add to the string list object.
+  string_list_t(const_iterator first, const_iterator last) : m_args(first, last) {
+  }
+
   /// @brief Construct a list from command line arguments.
   /// @param argc Argument count.
   /// @param argv Argument array.
@@ -109,6 +114,10 @@ public:
 
   size_t size() const {
     return m_args.size();
+  }
+
+  bool empty() const {
+    return m_args.size() == 0;
   }
 
   iterator begin() {

@@ -26,10 +26,14 @@
 #include <cache/local_cache.hpp>
 #include <cache/remote_cache.hpp>
 
+#include <functional>
 #include <map>
 #include <string>
 
 namespace bcache {
+/// @brief Return true if the cache entry should be treated as a cache hit.
+using lookup_filter_t = std::function<bool(const cache_entry_t&)>;
+
 /// @brief An interface to the different caches.
 class cache_t {
 public:
@@ -37,12 +41,15 @@ public:
   /// @param hash The hash of the cache entry.
   /// @param expected_files Paths to the actual files in the local file system (map from file ID to
   /// an expected file descriptor).
+  /// @param filter Allows the caller to inspect (and possibly reject) a cache entry while the lock
+  /// is held.
   /// @param allow_hard_links True if we are allowed to use hard links.
   /// @param create_target_dirs True if the target directory of the cached file must be created.
   /// @param[out] return_code The return code of the program.
   /// @returns true if we had a cache hit, otherwise false.
   bool lookup(const hasher_t::hash_t hash,
               const std::map<std::string, expected_file_t>& expected_files,
+              lookup_filter_t filter,
               const bool allow_hard_links,
               const bool create_target_dirs,
               int& return_code);
@@ -61,12 +68,14 @@ public:
 private:
   bool lookup_in_local_cache(const hasher_t::hash_t hash,
                              const std::map<std::string, expected_file_t>& expected_files,
+                             lookup_filter_t filter,
                              const bool allow_hard_links,
                              const bool create_target_dirs,
                              int& return_code);
 
   bool lookup_in_remote_cache(const hasher_t::hash_t hash,
                               const std::map<std::string, expected_file_t>& expected_files,
+                              lookup_filter_t filter,
                               const bool allow_hard_links,
                               const bool create_target_dirs,
                               int& return_code);
