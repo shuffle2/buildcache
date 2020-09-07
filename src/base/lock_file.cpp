@@ -17,13 +17,14 @@
 //  3. This notice may not be removed or altered from any source distribution.
 //--------------------------------------------------------------------------------------------------
 
-#include <base/lock_file.hpp>
-
 #include <base/debug_utils.hpp>
 #include <base/file_utils.hpp>
+#include <base/lock_file.hpp>
 #include <base/unicode_utils.hpp>
+#include <config/configuration.hpp>
 
 #include <cstdint>
+
 #include <algorithm>
 
 #if defined(_WIN32)
@@ -43,6 +44,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+
 #include <thread>
 #endif
 
@@ -78,7 +80,11 @@ bool file_is_too_old(const std::string& path) {
 
 lock_file_t::handle_t lock_file_t::invalid_handle() {
 #if defined(_WIN32)
-  return INVALID_HANDLE_VALUE;
+  if (config::local_locks()) {
+    return nullptr;
+  } else {
+    return INVALID_HANDLE_VALUE;
+  }
 #else
   return -1;
 #endif
@@ -86,45 +92,72 @@ lock_file_t::handle_t lock_file_t::invalid_handle() {
 
 lock_file_t::lock_file_t(const std::string& path) : m_path(path) {
 #if defined(_WIN32)
-  // Time values are in milliseconds.
-  const DWORD MAX_WAIT_TIME = 10000;  // We'll fail if the lock can't be acquired in 10s.
-  const DWORD MIN_SLEEP_TIME = 0;     // We start with 0, which is essentially just a yield.
-  const DWORD MAX_SLEEP_TIME = 50;
+  if (config::local_locks()) {
+    // Time values are in milliseconds.
+    const DWORD MAX_WAIT_TIME = 10000;  // We'll fail if the lock can't be acquired in 10s.
 
-  DWORD total_wait_time = 0;
-  DWORD sleep_time = MIN_SLEEP_TIME;
-
-  while (total_wait_time < MAX_WAIT_TIME) {
-    // Try to create the lock file in exclusive mode.
-    m_handle = CreateFileW(utf8_to_ucs2(path).c_str(),
-                           GENERIC_READ | GENERIC_WRITE,
-                           0,  // No sharing => exclusive access.
-                           nullptr,
-                           CREATE_ALWAYS,
-                           FILE_ATTRIBUTE_NORMAL | FILE_FLAG_DELETE_ON_CLOSE,
-                           nullptr);
-    if (m_handle != INVALID_HANDLE_VALUE) {
-      // We got the lock!
-      break;
-    } else {
-      // We were unable to create the file. We allow the following errors by waiting and trying
-      // again later: ERROR_SHARING_VIOLATION (the lock is already held by another process) and
-      // ERROR_ACCESS_DENIED (this can can in fact be due to a pending delete, see
-      // https://stackoverflow.com/q/6680491/5778708). Any other errors are treated as unrecoverable
-      // and result in an unlocked lock_file_t object.
-      const auto last_error = GetLastError();
-      if (last_error != ERROR_SHARING_VIOLATION && last_error != ERROR_ACCESS_DENIED) {
-        debug::log(debug::ERROR) << "Failed to open the lock file " << path
-                                 << " (error code: " << last_error << ")";
-        break;
-      }
+    // Just convert the path into a mutex name.
+    auto path_w = utf8_to_ucs2(path);
+    // Object names may not contain backslashes.
+    std::replace(path_w.begin(), path_w.end(), L'\\', L'_');
+    // Place in the Global namespace, so the mutex will work for any instance of buildcache on the
+    // local machine.
+    const auto name = L"Global\\" + path_w;
+    // Get a handle to a named mutex. The object may be created now for our call, or previously for
+    // another instance of buildcache - it doesn't make a difference.
+    m_handle = CreateMutexW(nullptr, FALSE, name.c_str());
+    if (m_handle == invalid_handle()) {
+      return;
     }
+    const DWORD status = WaitForSingleObject(m_handle, MAX_WAIT_TIME);
+    // WAIT_OBJECT_0 and WAIT_ABANDONED both indicate the lock has been acquired. WAIT_ABANDONED
+    // additionally indicates that the previous thread owning the lock terminated without properly
+    // releasing it.
+    if (!(status == WAIT_OBJECT_0 || status == WAIT_ABANDONED)) {
+      CloseHandle(m_handle);
+      m_handle = invalid_handle();
+    }
+  } else {
+    // Time values are in milliseconds.
+    const DWORD MAX_WAIT_TIME = 10000;  // We'll fail if the lock can't be acquired in 10s.
+    const DWORD MIN_SLEEP_TIME = 0;     // We start with 0, which is essentially just a yield.
+    const DWORD MAX_SLEEP_TIME = 50;
 
-    // Wait for a small period of time to give other processes a chance to release the lock.
-    // Note: Handle both short and long blocks by increasing the sleep time for every new try.
-    Sleep(sleep_time);
-    total_wait_time += sleep_time;
-    sleep_time = std::min(sleep_time * 2 + 1, MAX_SLEEP_TIME);
+    DWORD total_wait_time = 0;
+    DWORD sleep_time = MIN_SLEEP_TIME;
+
+    while (total_wait_time < MAX_WAIT_TIME) {
+      // Try to create the lock file in exclusive mode.
+      m_handle = CreateFileW(utf8_to_ucs2(path).c_str(),
+                             GENERIC_READ | GENERIC_WRITE,
+                             0,  // No sharing => exclusive access.
+                             nullptr,
+                             CREATE_ALWAYS,
+                             FILE_ATTRIBUTE_NORMAL | FILE_FLAG_DELETE_ON_CLOSE,
+                             nullptr);
+      if (m_handle != INVALID_HANDLE_VALUE) {
+        // We got the lock!
+        break;
+      } else {
+        // We were unable to create the file. We allow the following errors by waiting and trying
+        // again later: ERROR_SHARING_VIOLATION (the lock is already held by another process) and
+        // ERROR_ACCESS_DENIED (this can can in fact be due to a pending delete, see
+        // https://stackoverflow.com/q/6680491/5778708). Any other errors are treated as
+        // unrecoverable and result in an unlocked lock_file_t object.
+        const auto last_error = GetLastError();
+        if (last_error != ERROR_SHARING_VIOLATION && last_error != ERROR_ACCESS_DENIED) {
+          debug::log(debug::ERROR)
+              << "Failed to open the lock file " << path << " (error code: " << last_error << ")";
+          break;
+        }
+      }
+
+      // Wait for a small period of time to give other processes a chance to release the lock.
+      // Note: Handle both short and long blocks by increasing the sleep time for every new try.
+      Sleep(sleep_time);
+      total_wait_time += sleep_time;
+      sleep_time = std::min(sleep_time * 2 + 1, MAX_SLEEP_TIME);
+    }
   }
 #else
   // Time values are in microseconds.
@@ -263,9 +296,18 @@ lock_file_t& lock_file_t::operator=(lock_file_t&& other) noexcept {
 
 lock_file_t::~lock_file_t() {
 #if defined(_WIN32)
-  if (m_handle != INVALID_HANDLE_VALUE) {
-    // Close the lock file. This also deletes the file due to FILE_FLAG_DELETE_ON_CLOSE.
-    CloseHandle(m_handle);
+  if (config::local_locks()) {
+    if (m_handle) {
+      if (m_has_lock) {
+        ReleaseMutex(m_handle);
+      }
+      CloseHandle(m_handle);
+    }
+  } else {
+    if (m_handle != INVALID_HANDLE_VALUE) {
+      // Close the lock file. This also deletes the file due to FILE_FLAG_DELETE_ON_CLOSE.
+      CloseHandle(m_handle);
+    }
   }
 #else
   if (m_handle >= 0) {
