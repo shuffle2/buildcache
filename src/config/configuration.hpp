@@ -120,6 +120,9 @@ bool disable();
 /// @returns true if the readonly mode is enabled.
 bool read_only();
 
+/// @returns true if lock_file_t may use implementation optimized for sharing on local machine only.
+bool local_locks();
+
 /// @returns the cache accuracy.
 cache_accuracy_t accuracy();
 

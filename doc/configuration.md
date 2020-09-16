@@ -30,6 +30,7 @@ The following options control the behavior of BuildCache:
 | `BUILDCACHE_ACCURACY` | `accuracy` | Caching accuracy (see below) | DEFAULT |
 | `BUILDCACHE_READ_ONLY` | `read_only` | Only read and use the cache without updating it | false |
 | `BUILDCACHE_IMPERSONATE` | `impersonate` | Explicitly set the executable to wrap | None |
+| `BUILDCACHE_LOCAL_LOCKS` | `local_locks` | Use faster lockfile implementation, only safe if the cache is not on a fileshare | false |
 
 Note: Currently, only the TI C6x back end supports the `cache_link_commands`
 option.
